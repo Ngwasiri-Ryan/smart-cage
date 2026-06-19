@@ -45,17 +45,17 @@ class AppState extends ChangeNotifier {
   bool simulatorOpen = false;
 
   // Sensor readings (synchronized with backend)
-  double temp = 24;
-  double ammonia = 8;
-  double feedToday = 45;
-  List<double> feedIntervals = [15, 15, 15];
+  double temp = 0;
+  double ammonia = 0;
+  double feedToday = 0;
+  List<double> feedIntervals = [0, 0, 0];
   double weatherTemp = 22;
   double weatherRain = 10;
   DateTime lastUpdated = DateTime.now();
 
   // History (synchronized with backend)
-  List<double> feedHistory = [48, 47.5, 46.5, 44, 43.5, 42.5, 45];
-  List<double> ammoniaHistory = [8, 9, 12, 14, 11, 8, 8, 8];
+  List<double> feedHistory = [0, 0, 0, 0, 0, 0, 0];
+  List<double> ammoniaHistory = [0, 0, 0, 0, 0, 0, 0, 0];
   List<double> heatmapData = [];
 
   // Relay states (synchronized with backend)
@@ -66,7 +66,7 @@ class AppState extends ChangeNotifier {
   List<AlertItem> alerts = [];
 
   // AI summary (synchronized with backend)
-  String aiSummary = '"Loading summary from server..."';
+  String aiSummary = '"No summary loaded..."';
   bool aiLoading = false;
 
   // Pending toasts consumed by the UI
@@ -164,6 +164,7 @@ class AppState extends ChangeNotifier {
         isConnected = status;
         if (status) {
           _toast('Connected to ChirpGuard server', 'Caution');
+          _loadInitialData(); // Load live data from REST API immediately on connection success
         }
         notifyListeners();
       },
