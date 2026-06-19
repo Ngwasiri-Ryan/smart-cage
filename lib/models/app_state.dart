@@ -1,6 +1,10 @@
+import 'dart:io';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/api_service.dart';
+import '../services/socket_service.dart';
 
 class ToastData {
   final String message;
@@ -25,6 +29,11 @@ class AlertItem {
 }
 
 class AppState extends ChangeNotifier {
+  // Services
+  final ApiService _apiService = ApiService();
+  final SocketService _socketService = SocketService();
+  bool isConnected = false;
+
   // Onboarding
   int onboardingSlide = 0;
   bool onboardingComplete = false;
@@ -35,7 +44,7 @@ class AppState extends ChangeNotifier {
   // Simulator drawer
   bool simulatorOpen = false;
 
-  // Sensor readings
+  // Sensor readings (synchronized with backend)
   double temp = 24;
   double ammonia = 8;
   double feedToday = 45;
@@ -44,20 +53,20 @@ class AppState extends ChangeNotifier {
   double weatherRain = 10;
   DateTime lastUpdated = DateTime.now();
 
-  // History
+  // History (synchronized with backend)
   List<double> feedHistory = [48, 47.5, 46.5, 44, 43.5, 42.5, 45];
   List<double> ammoniaHistory = [8, 9, 12, 14, 11, 8, 8, 8];
   List<double> heatmapData = [];
 
-  // Relay states
+  // Relay states (synchronized with backend)
   bool relayActiveFan = false;
   bool relayActiveHeater = false;
 
-  // Alerts
+  // Alerts (synchronized with backend)
   List<AlertItem> alerts = [];
 
-  // AI summary
-  String aiSummary = '"Temperature and ammonia are within safe limits. Feed intake is steady."';
+  // AI summary (synchronized with backend)
+  String aiSummary = '"Loading summary from server..."';
   bool aiLoading = false;
 
   // Pending toasts consumed by the UI
@@ -65,21 +74,146 @@ class AppState extends ChangeNotifier {
   List<ToastData> get pendingToasts => List.unmodifiable(_pendingToasts);
 
   AppState() {
-    _generateInitialAlerts();
     _initHeatmapData();
     _updateRelays();
+
+    // Phase 12: Fetch initial data from REST API and setup real-time WSS
+    // Skip if running in unit test environment to avoid pending timers/network errors
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _loadInitialData();
+      _setupWebSocket();
+    }
   }
 
-  void _generateInitialAlerts() {
-    alerts = [
-      AlertItem(
-        id: 1,
-        date: DateTime.now().subtract(const Duration(hours: 10)),
-        type: 'Ammonia',
-        description: 'Ammonia level entering watch zone (Caution)',
-        severity: 'Caution',
-      ),
-    ];
+  // Fetch all initial dashboard states from Railway DB on launch
+  Future<void> _loadInitialData() async {
+    try {
+      // 1. Fetch latest telemetry
+      final latestTelemetry = await _apiService.fetchLatestTelemetry();
+      if (latestTelemetry != null) {
+        temp = (latestTelemetry['temperature'] as num).toDouble();
+        ammonia = (latestTelemetry['ammonia'] as num).toDouble();
+        relayActiveFan = latestTelemetry['fanActive'] as bool;
+        relayActiveHeater = latestTelemetry['heaterActive'] as bool;
+        if (latestTelemetry['createdAt'] != null) {
+          lastUpdated = DateTime.parse(latestTelemetry['createdAt'] as String);
+        }
+        ammoniaHistory[7] = ammonia;
+        _updateHeatmapToday();
+      }
+
+      // 2. Fetch today's feed
+      final todayFeed = await _apiService.fetchTodayFeed();
+      if (todayFeed != null) {
+        final intervalsMap = todayFeed['intervals'] as Map<String, dynamic>;
+        feedIntervals = [
+          intervalsMap['MORNING'] != null ? (intervalsMap['MORNING'] as num).toDouble() : 0.0,
+          intervalsMap['AFTERNOON'] != null ? (intervalsMap['AFTERNOON'] as num).toDouble() : 0.0,
+          intervalsMap['NIGHT'] != null ? (intervalsMap['NIGHT'] as num).toDouble() : 0.0,
+        ];
+        feedToday = (todayFeed['totalKg'] as num).toDouble();
+      }
+
+      // 3. Fetch feed history
+      final history = await _apiService.fetchFeedHistory();
+      if (history != null && history.isNotEmpty) {
+        // Map the last 7 days from the server to feedHistory
+        final mappedHistory = history.map((item) => (item['totalKg'] as num).toDouble()).toList();
+        // Make sure we have 7 days in the list
+        if (mappedHistory.length == 7) {
+          feedHistory = mappedHistory;
+        } else {
+          // Fallback/merge if server returns fewer than 7 records
+          for (int i = 0; i < mappedHistory.length && i < 7; i++) {
+            feedHistory[6 - i] = mappedHistory[mappedHistory.length - 1 - i];
+          }
+        }
+      }
+
+      // 4. Fetch alerts
+      final alertsList = await _apiService.fetchAlerts();
+      if (alertsList != null) {
+        alerts = alertsList.map((item) {
+          return AlertItem(
+            id: item['id'] as int,
+            date: DateTime.parse(item['createdAt'] as String),
+            type: _capitalize(item['type'] as String),
+            description: item['description'] as String,
+            severity: _capitalize(item['severity'] as String),
+          );
+        }).toList();
+      }
+
+      // 5. Fetch AI summary
+      final todaySummary = await _apiService.fetchTodaySummary();
+      if (todaySummary != null) {
+        aiSummary = '"${todaySummary['summary']}"';
+      } else {
+        aiSummary = '"No summary generated for today yet."';
+      }
+    } catch (e) {
+      print('AppState: _loadInitialData error: $e');
+    }
+    notifyListeners();
+  }
+
+  // Subscribe to real-time events via Socket.io
+  void _setupWebSocket() {
+    _socketService.connect(
+      onConnectionStatus: (status) {
+        isConnected = status;
+        if (status) {
+          _toast('Connected to ChirpGuard server', 'Caution');
+        }
+        notifyListeners();
+      },
+      onTelemetryUpdate: (data) {
+        temp = (data['temperature'] as num).toDouble();
+        ammonia = (data['ammonia'] as num).toDouble();
+        if (data['createdAt'] != null) {
+          lastUpdated = DateTime.parse(data['createdAt'] as String);
+        }
+        ammoniaHistory[7] = ammonia;
+        _updateHeatmapToday();
+        _updateRelays();
+        notifyListeners();
+      },
+      onFeedUpdate: (data) {
+        final intervalsMap = data['intervals'] as Map<String, dynamic>;
+        feedIntervals = [
+          intervalsMap['MORNING'] != null ? (intervalsMap['MORNING'] as num).toDouble() : 0.0,
+          intervalsMap['AFTERNOON'] != null ? (intervalsMap['AFTERNOON'] as num).toDouble() : 0.0,
+          intervalsMap['NIGHT'] != null ? (intervalsMap['NIGHT'] as num).toDouble() : 0.0,
+        ];
+        feedToday = (data['totalKg'] as num).toDouble();
+        feedHistory[6] = feedToday;
+        notifyListeners();
+      },
+      onAlertNew: (data) {
+        final newAlert = AlertItem(
+          id: data['id'] as int,
+          date: DateTime.parse(data['createdAt'] as String),
+          type: _capitalize(data['type'] as String),
+          description: data['description'] as String,
+          severity: _capitalize(data['severity'] as String),
+        );
+        if (!alerts.any((a) => a.id == newAlert.id)) {
+          alerts.insert(0, newAlert);
+          _toast(newAlert.description, newAlert.severity);
+        }
+        notifyListeners();
+      },
+      onRelayChange: (data) {
+        relayActiveFan = data['fanActive'] as bool;
+        relayActiveHeater = data['heaterActive'] as bool;
+        notifyListeners();
+      },
+    );
+  }
+
+  String _capitalize(String value) {
+    if (value.isEmpty) return value;
+    return value[0].toUpperCase() + value.substring(1).toLowerCase();
   }
 
   void _initHeatmapData() {
@@ -154,7 +288,6 @@ class AppState extends ChangeNotifier {
     return Icons.remove;
   }
 
-  // 0 = good, 1 = warning, 2 = critical
   int get bannerStatus {
     if (ammonia >= 50 || temp > 40) return 2;
     final hasCritical = alerts.any(
@@ -230,73 +363,6 @@ class AppState extends ChangeNotifier {
     _pendingToasts.add(ToastData(message, severity));
   }
 
-  void _triggerAlertOnce(String type, String description, String severity) {
-    final exists = alerts.any((a) => a.description == description);
-    if (!exists) {
-      alerts.insert(
-        0,
-        AlertItem(
-          id: DateTime.now().microsecondsSinceEpoch,
-          date: DateTime.now(),
-          type: type,
-          description: description,
-          severity: severity,
-        ),
-      );
-      _toast(description, severity);
-    }
-  }
-
-  void _checkAlerts() {
-    if (temp < 15) {
-      _triggerAlertOnce('Temperature',
-          'Very cold temperatures detected — check heating', 'Warning');
-    }
-    if (temp > 40) {
-      _triggerAlertOnce('Temperature',
-          'Very hot temperatures detected — check ventilation', 'Warning');
-    }
-    if (ammonia >= 10 && ammonia < 25) {
-      _triggerAlertOnce(
-          'Ammonia', 'Ammonia level entering watch zone (Caution)', 'Caution');
-    }
-    if (ammonia >= 25 && ammonia < 50) {
-      _triggerAlertOnce('Ammonia',
-          'Elevated Ammonia - ventilation automated (Warning)', 'Warning');
-    }
-    if (ammonia >= 50 && ammonia <= 100) {
-      _triggerAlertOnce('Ammonia',
-          'Hazardous Ammonia: ventilation at full cap (Critical)', 'Critical');
-    }
-    if (ammonia > 100) {
-      _triggerAlertOnce('Ammonia',
-          'Severe Ammonia: Evacuate birds immediately (Emergency)', 'Emergency');
-    }
-    if (feedTrendIsDeclining) {
-      _triggerAlertOnce(
-          'Feed',
-          'Feed consumption declining for 2 consecutive days — check bird health',
-          'Warning');
-    }
-    if (combinedRisk) {
-      _triggerAlertOnce(
-          'Combined',
-          'Ammonia high and feed consumption down (Combined Risk)',
-          'Warning');
-    }
-    final last3Avg = (feedHistory[5] + feedHistory[4] + feedHistory[3]) / 3;
-    final intervalAvg = last3Avg / 3;
-    for (final r in feedIntervals) {
-      if (r < intervalAvg * 0.05) {
-        _triggerAlertOnce(
-            'Feed',
-            'Feeder may be blocked (8-hour cycle very low) — check equipment',
-            'Warning');
-        break;
-      }
-    }
-  }
-
   void _updateRelays() {
     relayActiveHeater = temp < 15;
     relayActiveFan = ammonia >= 25 || temp > 40;
@@ -308,73 +374,94 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // Update temperature (posts live to Railway)
   void updateTemp(double value) {
     temp = value;
     _updateRelays();
-    _checkAlerts();
+    _updateHeatmapToday();
     lastUpdated = DateTime.now();
     notifyListeners();
+
+    // Async REST update to DB
+    _apiService.postTelemetry(
+      temperature: temp,
+      ammonia: ammonia,
+      fanActive: relayActiveFan,
+      heaterActive: relayActiveHeater,
+    );
   }
 
+  // Update ammonia (posts live to Railway)
   void updateAmmonia(double value) {
     ammonia = value;
     ammoniaHistory[7] = value;
-    _updateHeatmapToday();
     _updateRelays();
-    _checkAlerts();
+    _updateHeatmapToday();
     lastUpdated = DateTime.now();
     notifyListeners();
+
+    // Async REST update to DB
+    _apiService.postTelemetry(
+      temperature: temp,
+      ammonia: ammonia,
+      fanActive: relayActiveFan,
+      heaterActive: relayActiveHeater,
+    );
   }
 
+  // Update feed readings (posts live to Railway)
   void updateFeedReadings(double f1, double f2, double f3) {
+    if (f1 != feedIntervals[0]) {
+      _apiService.postFeedReading(slot: 'MORNING', weightKg: f1);
+    }
+    if (f2 != feedIntervals[1]) {
+      _apiService.postFeedReading(slot: 'AFTERNOON', weightKg: f2);
+    }
+    if (f3 != feedIntervals[2]) {
+      _apiService.postFeedReading(slot: 'NIGHT', weightKg: f3);
+    }
+
     feedIntervals = [f1, f2, f3];
     feedToday = f1 + f2 + f3;
     feedHistory[6] = feedToday;
-    _checkAlerts();
     lastUpdated = DateTime.now();
     notifyListeners();
   }
 
+  // Trigger scenario preset on live DB
   void triggerScenario(String preset) {
     alerts.clear();
     _pendingToasts.clear();
 
     switch (preset) {
       case 'healthy':
-        temp = 24; ammonia = 8;
-        feedIntervals = [15, 15, 15]; feedToday = 45;
-        feedHistory = [44, 44.5, 43.8, 44.2, 45, 43.9, 45];
-        ammoniaHistory = [8, 9, 10, 8, 9, 8, 8, 8];
+        _apiService.postTelemetry(temperature: 24, ammonia: 8, fanActive: false, heaterActive: false);
+        _apiService.postFeedReading(slot: 'MORNING', weightKg: 15);
+        _apiService.postFeedReading(slot: 'AFTERNOON', weightKg: 15);
+        _apiService.postFeedReading(slot: 'NIGHT', weightKg: 15);
         _toast('Healthy farm environment preset loaded', 'Caution');
         break;
       case 'cold':
-        temp = 8; ammonia = 6;
-        feedIntervals = [14, 14.5, 14]; feedToday = 42.5;
+        _apiService.postTelemetry(temperature: 8, ammonia: 6, fanActive: false, heaterActive: true);
         _toast('Extreme cold — Heater automatically engaged', 'Warning');
         break;
       case 'hot':
-        temp = 42; ammonia = 8;
-        feedIntervals = [13, 13, 12]; feedToday = 38;
+        _apiService.postTelemetry(temperature: 42, ammonia: 8, fanActive: true, heaterActive: false);
         _toast('Extreme heat — Fan engaged on High speed', 'Warning');
         break;
       case 'combined':
-        temp = 24; ammonia = 58;
-        feedIntervals = [10, 10, 11]; feedToday = 31;
-        feedHistory = [48, 45, 41, 38, 36, 34, 31];
-        ammoniaHistory = [12, 18, 26, 34, 42, 50, 58, 58];
+        _apiService.postTelemetry(temperature: 24, ammonia: 58, fanActive: true, heaterActive: false);
         _toast('Combined Hazard Scenario Active!', 'Critical');
         break;
     }
-    feedHistory[6] = feedToday;
-    _updateHeatmapToday();
-    _updateRelays();
-    _checkAlerts();
-    lastUpdated = DateTime.now();
+
     simulatorOpen = false;
     notifyListeners();
   }
 
+  // Clear all alerts from live DB
   void clearAlerts() {
+    _apiService.clearAlerts();
     alerts.clear();
     _toast('Alert logs cleared successfully', 'Caution');
     notifyListeners();
@@ -418,24 +505,28 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void generateLocalAISummary() {
-    String summary;
-    if (ammonia >= 50) {
-      summary = 'Critical ammonia hazard! Automated fans are fully engaged. Inspect coop immediately.';
-    } else if (temp < 15) {
-      summary = 'Low temperature threshold crossed. Heater relay engaged to safeguard chicks.';
-    } else if (temp > 40) {
-      summary = 'Extreme heat stress risk. Fan relays working at maximum speed capacity.';
-    } else if (feedTrendIsDeclining && ammonia >= 25) {
-      summary = 'Combined Risk: Ammonia high and feed intake dropping. High risk of flock illness.';
-    } else if (feedTrendIsDeclining) {
-      summary = 'Feed intake is dropping consecutive days. Assess flock for clinical symptoms.';
-    } else if (ammonia >= 25) {
-      summary = 'Ammonia levels high. Automated ventilation fans activated to restore equilibrium.';
-    } else {
-      summary = 'Temperature and ammonia are within safe limits. Feed intake is steady.';
-    }
-    aiSummary = '"$summary"';
+  // Generates AI summary on the live server and updates AppState
+  Future<void> generateLocalAISummary() async {
+    aiLoading = true;
     notifyListeners();
+    try {
+      final res = await _apiService.generateSummary();
+      if (res != null) {
+        aiSummary = '"${res['summary']}"';
+      } else {
+        _toast('Failed to generate summary', 'Warning');
+      }
+    } catch (e) {
+      print('AppState: generateLocalAISummary error: $e');
+    } finally {
+      aiLoading = false;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _socketService.disconnect();
+    super.dispose();
   }
 }
