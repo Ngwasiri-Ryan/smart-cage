@@ -54,8 +54,10 @@ class AppState extends ChangeNotifier {
   DateTime lastUpdated = DateTime.now();
 
   // History (synchronized with backend)
+  List<double> tempHistory = [0, 0, 0, 0, 0, 0, 0, 0];
   List<double> feedHistory = [0, 0, 0, 0, 0, 0, 0];
   List<double> ammoniaHistory = [0, 0, 0, 0, 0, 0, 0, 0];
+  List<String> telemetryTimeLabels = ['', '', '', '', '', '', '', ''];
   List<double> heatmapData = [];
 
   // Relay states (synchronized with backend)
@@ -98,8 +100,39 @@ class AppState extends ChangeNotifier {
         if (latestTelemetry['createdAt'] != null) {
           lastUpdated = DateTime.parse(latestTelemetry['createdAt'] as String);
         }
-        ammoniaHistory[7] = ammonia;
         _updateHeatmapToday();
+      }
+
+      // Fetch telemetry history (last 24 hours) for charts & heatmap
+      final historyList = await _apiService.fetchTelemetryHistory();
+      if (historyList != null && historyList.isNotEmpty) {
+        // We want the last 8 entries for the telemetry charts
+        final recentReadings = historyList.length > 8 
+            ? historyList.sublist(historyList.length - 8)
+            : historyList;
+            
+        // Populate tempHistory, ammoniaHistory, and telemetryTimeLabels
+        for (int i = 0; i < 8; i++) {
+          if (i < recentReadings.length) {
+            final reading = recentReadings[i];
+            tempHistory[i] = (reading['temperature'] as num).toDouble();
+            ammoniaHistory[i] = (reading['ammonia'] as num).toDouble();
+            if (reading['createdAt'] != null) {
+              final time = DateTime.parse(reading['createdAt'] as String).toLocal();
+              telemetryTimeLabels[i] = "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+            }
+          } else {
+            tempHistory[i] = 0.0;
+            ammoniaHistory[i] = 0.0;
+            telemetryTimeLabels[i] = '';
+          }
+        }
+
+        // Populate heatmap with actual historical values
+        for (int i = 0; i < historyList.length && i < 91; i++) {
+          final reading = historyList[historyList.length - 1 - i];
+          heatmapData[90 - i] = (reading['ammonia'] as num).toDouble();
+        }
       }
 
       // 2. Fetch today's feed
@@ -174,7 +207,17 @@ class AppState extends ChangeNotifier {
         if (data['createdAt'] != null) {
           lastUpdated = DateTime.parse(data['createdAt'] as String);
         }
-        ammoniaHistory[7] = ammonia;
+        
+        // Push to telemetry history for live-updating charts
+        tempHistory.removeAt(0);
+        tempHistory.add(temp);
+        ammoniaHistory.removeAt(0);
+        ammoniaHistory.add(ammonia);
+        
+        telemetryTimeLabels.removeAt(0);
+        final localTime = lastUpdated.toLocal();
+        telemetryTimeLabels.add("${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}");
+        
         _updateHeatmapToday();
         _updateRelays();
         notifyListeners();

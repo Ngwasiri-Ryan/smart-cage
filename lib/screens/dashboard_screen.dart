@@ -529,9 +529,6 @@ class _TempChartCard extends StatelessWidget {
   final AppState state;
   const _TempChartCard({required this.state});
 
-  static const _labels = ['06:00', '09:00', '12:00', '15:00', '18:00', '21:00', '00:00', '03:00'];
-  static const _data = [22.0, 23.5, 26.0, 28.0, 25.0, 23.0, 21.5, 20.8];
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -588,10 +585,10 @@ class _TempChartCard extends StatelessWidget {
                     interval: 1,
                     getTitlesWidget: (v, _) {
                       final i = v.toInt();
-                      if (i < 0 || i >= _labels.length) return const SizedBox();
+                      if (i < 0 || i >= state.telemetryTimeLabels.length) return const SizedBox();
                       return Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(_labels[i],
+                        child: Text(state.telemetryTimeLabels[i],
                             style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700,
                                 color: AppColors.slate500)),
                       );
@@ -612,8 +609,8 @@ class _TempChartCard extends StatelessWidget {
               borderData: FlBorderData(show: false),
               lineBarsData: [
                 LineChartBarData(
-                  spots: List.generate(_data.length,
-                          (i) => FlSpot(i.toDouble(), _data[i])),
+                  spots: List.generate(state.tempHistory.length,
+                          (i) => FlSpot(i.toDouble(), state.tempHistory[i])),
                   isCurved: true,
                   curveSmoothness: 0.35,
                   color: AppColors.blue600,

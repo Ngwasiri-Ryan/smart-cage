@@ -237,8 +237,6 @@ class _AmmoniaChartCard extends StatelessWidget {
   final AppState state;
   const _AmmoniaChartCard({required this.state});
 
-  static const _labels = ['06:00', '09:00', '12:00', '15:00', '18:00', '21:00', '00:00', 'Today'];
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -291,10 +289,10 @@ class _AmmoniaChartCard extends StatelessWidget {
                     interval: 1,
                     getTitlesWidget: (v, _) {
                       final i = v.toInt();
-                      if (i < 0 || i >= _labels.length) return const SizedBox();
+                      if (i < 0 || i >= state.telemetryTimeLabels.length) return const SizedBox();
                       return Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(_labels[i],
+                        child: Text(state.telemetryTimeLabels[i],
                             style: const TextStyle(fontSize: 8,
                                 fontWeight: FontWeight.w700, color: AppColors.slate500)),
                       );

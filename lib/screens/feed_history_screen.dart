@@ -65,16 +65,17 @@ class FeedHistoryScreen extends StatelessWidget {
                         color: AppColors.slate800)),
               ]),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.amber500.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
+              if (state.feedTrendIsDeclining)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.amber500.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('Drop Warning Active',
+                      style: TextStyle(fontSize: 9, color: AppColors.amber700,
+                          fontWeight: FontWeight.w700)),
                 ),
-                child: const Text('Drop Warning Active',
-                    style: TextStyle(fontSize: 9, color: AppColors.amber700,
-                        fontWeight: FontWeight.w700)),
-              ),
             ]),
             const SizedBox(height: 16),
             SizedBox(

@@ -18,6 +18,19 @@ class ApiService {
     return null;
   }
 
+  // Fetch telemetry history (last 24 hours)
+  Future<List<dynamic>?> fetchTelemetryHistory({int hours = 24}) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/telemetry/history?hours=$hours'));
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as List<dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: fetchTelemetryHistory error: $e');
+    }
+    return null;
+  }
+
   // Fetch today's feed readings
   Future<Map<String, dynamic>?> fetchTodayFeed() async {
     try {
