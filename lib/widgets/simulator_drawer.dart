@@ -105,7 +105,7 @@ class _SimulatorDrawerState extends State<SimulatorDrawer> {
               // Temperature slider
               _sliderSection(
                 label: 'Coop Temperature (°C)',
-                valueLabel: '${state.temp.toStringAsFixed(0)} °C',
+                valueLabel: '${state.temp.toStringAsFixed(1)} °C',
                 min: 5, max: 50,
                 value: state.temp,
                 onChanged: (v) => state.updateTemp(v),

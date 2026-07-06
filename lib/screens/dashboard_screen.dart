@@ -212,7 +212,7 @@ class _TempCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: RichText(text: TextSpan(children: [
-              TextSpan(text: state.temp.toStringAsFixed(0),
+              TextSpan(text: state.temp.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900,
                       color: AppColors.slate800, letterSpacing: -1)),
               const TextSpan(text: ' °C',
@@ -302,7 +302,7 @@ class _FeedCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: RichText(text: TextSpan(children: [
-              TextSpan(text: state.feedToday.toStringAsFixed(0),
+              TextSpan(text: state.feedToday.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900,
                       color: AppColors.slate800, letterSpacing: -1)),
               const TextSpan(text: ' kg',

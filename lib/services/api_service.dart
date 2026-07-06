@@ -89,6 +89,7 @@ class ApiService {
   Future<bool> postTelemetry({
     required double temperature,
     required double ammonia,
+    required double feedWeight,
     required bool fanActive,
     required bool heaterActive,
   }) async {
@@ -99,6 +100,7 @@ class ApiService {
         body: json.encode({
           'temperature': temperature,
           'ammonia': ammonia,
+          'feedWeight': feedWeight,
           'fanActive': fanActive,
           'heaterActive': heaterActive,
         }),

@@ -95,6 +95,10 @@ class AppState extends ChangeNotifier {
       if (latestTelemetry != null) {
         temp = (latestTelemetry['temperature'] as num).toDouble();
         ammonia = (latestTelemetry['ammonia'] as num).toDouble();
+        if (latestTelemetry['feedWeight'] != null) {
+          feedToday = (latestTelemetry['feedWeight'] as num).toDouble();
+          feedHistory[6] = feedToday;
+        }
         relayActiveFan = latestTelemetry['fanActive'] as bool;
         relayActiveHeater = latestTelemetry['heaterActive'] as bool;
         if (latestTelemetry['createdAt'] != null) {
@@ -204,6 +208,10 @@ class AppState extends ChangeNotifier {
       onTelemetryUpdate: (data) {
         temp = (data['temperature'] as num).toDouble();
         ammonia = (data['ammonia'] as num).toDouble();
+        if (data['feedWeight'] != null) {
+          feedToday = (data['feedWeight'] as num).toDouble();
+          feedHistory[6] = feedToday;
+        }
         if (data['createdAt'] != null) {
           lastUpdated = DateTime.parse(data['createdAt'] as String);
         }
@@ -430,6 +438,7 @@ class AppState extends ChangeNotifier {
     _apiService.postTelemetry(
       temperature: temp,
       ammonia: ammonia,
+      feedWeight: feedToday,
       fanActive: relayActiveFan,
       heaterActive: relayActiveHeater,
     );
@@ -448,6 +457,7 @@ class AppState extends ChangeNotifier {
     _apiService.postTelemetry(
       temperature: temp,
       ammonia: ammonia,
+      feedWeight: feedToday,
       fanActive: relayActiveFan,
       heaterActive: relayActiveHeater,
     );
@@ -479,22 +489,22 @@ class AppState extends ChangeNotifier {
 
     switch (preset) {
       case 'healthy':
-        _apiService.postTelemetry(temperature: 24, ammonia: 8, fanActive: false, heaterActive: false);
+        _apiService.postTelemetry(temperature: 24, ammonia: 8, feedWeight: 45.0, fanActive: false, heaterActive: false);
         _apiService.postFeedReading(slot: 'MORNING', weightKg: 15);
         _apiService.postFeedReading(slot: 'AFTERNOON', weightKg: 15);
         _apiService.postFeedReading(slot: 'NIGHT', weightKg: 15);
         _toast('Healthy farm environment preset loaded', 'Caution');
         break;
       case 'cold':
-        _apiService.postTelemetry(temperature: 8, ammonia: 6, fanActive: false, heaterActive: true);
+        _apiService.postTelemetry(temperature: 8, ammonia: 6, feedWeight: feedToday, fanActive: false, heaterActive: true);
         _toast('Extreme cold — Heater automatically engaged', 'Warning');
         break;
       case 'hot':
-        _apiService.postTelemetry(temperature: 42, ammonia: 8, fanActive: true, heaterActive: false);
+        _apiService.postTelemetry(temperature: 42, ammonia: 8, feedWeight: feedToday, fanActive: true, heaterActive: false);
         _toast('Extreme heat — Fan engaged on High speed', 'Warning');
         break;
       case 'combined':
-        _apiService.postTelemetry(temperature: 24, ammonia: 58, fanActive: true, heaterActive: false);
+        _apiService.postTelemetry(temperature: 24, ammonia: 58, feedWeight: feedToday, fanActive: true, heaterActive: false);
         _toast('Combined Hazard Scenario Active!', 'Critical');
         break;
     }
