@@ -345,27 +345,31 @@ class AppState extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> registerPersonnel(String name, String role) async {
-    final person = await _apiService.registerPersonnel(name, role);
-    if (person != null) {
-      personnel.insert(0, person);
+  Future<Map<String, dynamic>> registerPersonnel({
+    required String name,
+    required String role,
+    required List<int> frontBytes,
+    required String frontName,
+    required List<int> leftBytes,
+    required String leftName,
+    required List<int> rightBytes,
+    required String rightName,
+  }) async {
+    final result = await _apiService.registerPersonnel(
+      name: name,
+      role: role,
+      frontBytes: frontBytes,
+      frontName: frontName,
+      leftBytes: leftBytes,
+      leftName: leftName,
+      rightBytes: rightBytes,
+      rightName: rightName,
+    );
+    if (result['status'] == 'ok' && result['personnel'] != null) {
+      personnel.insert(0, result['personnel']);
       notifyListeners();
-      return true;
     }
-    return false;
-  }
-
-  Future<bool> uploadFace(int personnelId, String angle, List<int> bytes, String fileName) async {
-    final success = await _apiService.uploadFace(personnelId, angle, bytes, fileName);
-    if (success) {
-      final personnelList = await _apiService.fetchPersonnel();
-      if (personnelList != null) {
-        personnel = personnelList;
-      }
-      notifyListeners();
-      return true;
-    }
-    return false;
+    return result;
   }
 
   String _capitalize(String value) {

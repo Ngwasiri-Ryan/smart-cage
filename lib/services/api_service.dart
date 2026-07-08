@@ -203,35 +203,47 @@ class ApiService {
     return null;
   }
 
-  // Register personnel
-  Future<Map<String, dynamic>?> registerPersonnel(String name, String role) async {
+  // Register personnel with 3-angle face validation
+  Future<Map<String, dynamic>> registerPersonnel({
+    required String name,
+    required String role,
+    required List<int> frontBytes,
+    required String frontName,
+    required List<int> leftBytes,
+    required String leftName,
+    required List<int> rightBytes,
+    required String rightName,
+  }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/personnel'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'name': name, 'role': role}),
-      );
-      if (response.statusCode == 201) {
-        return json.decode(response.body) as Map<String, dynamic>;
-      }
-    } catch (e) {
-      print('ApiService: registerPersonnel error: $e');
-    }
-    return null;
-  }
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/personnel'));
+      request.fields['name'] = name;
+      request.fields['role'] = role;
 
-  // Upload face photo
-  Future<bool> uploadFace(int id, String angle, List<int> bytes, String fileName) async {
-    try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/personnel/$id/face'));
-      request.fields['angle'] = angle;
-      request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+      request.files.add(http.MultipartFile.fromBytes('front', frontBytes, filename: frontName));
+      request.files.add(http.MultipartFile.fromBytes('left', leftBytes, filename: leftName));
+      request.files.add(http.MultipartFile.fromBytes('right', rightBytes, filename: rightName));
+
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      return response.statusCode == 201 || response.statusCode == 200;
+
+      if (response.statusCode == 201) {
+        return {
+          'status': 'ok',
+          'personnel': json.decode(response.body) as Map<String, dynamic>,
+        };
+      } else if (response.statusCode == 400) {
+        try {
+          final errBody = json.decode(response.body);
+          return {
+            'status': 'validation_failed',
+            'errors': errBody['errors'] as Map<String, dynamic>? ?? {},
+          };
+        } catch (_) {}
+      }
+      return {'status': 'error', 'message': 'HTTP ${response.statusCode}'};
     } catch (e) {
-      print('ApiService: uploadFace error: $e');
-      return false;
+      print('ApiService: registerPersonnel error: $e');
+      return {'status': 'error', 'message': e.toString()};
     }
   }
 
