@@ -257,4 +257,32 @@ class ApiService {
     }
     return null;
   }
+
+  // Update camera
+  Future<Map<String, dynamic>?> updateCamera(int id, String name, String rtspUrl, String zone, bool active) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/cameras/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'name': name, 'rtspUrl': rtspUrl, 'zone': zone, 'active': active}),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: updateCamera error: $e');
+    }
+    return null;
+  }
+
+  // Delete camera
+  Future<bool> deleteCamera(int id) async {
+    try {
+      final response = await http.delete(Uri.parse('$baseUrl/cameras/$id'));
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print('ApiService: deleteCamera error: $e');
+      return false;
+    }
+  }
 }

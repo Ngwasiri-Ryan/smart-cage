@@ -322,6 +322,29 @@ class AppState extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> updateCamera(int id, String name, String rtspUrl, String zone, bool active) async {
+    final updated = await _apiService.updateCamera(id, name, rtspUrl, zone, active);
+    if (updated != null) {
+      final index = cameras.indexWhere((c) => c['id'] == id);
+      if (index != -1) {
+        cameras[index] = updated;
+        notifyListeners();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteCamera(int id) async {
+    final success = await _apiService.deleteCamera(id);
+    if (success) {
+      cameras.removeWhere((c) => c['id'] == id);
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
   Future<bool> registerPersonnel(String name, String role) async {
     final person = await _apiService.registerPersonnel(name, role);
     if (person != null) {

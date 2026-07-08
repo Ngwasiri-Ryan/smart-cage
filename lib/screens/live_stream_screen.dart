@@ -5,7 +5,8 @@ import '../models/app_state.dart';
 import '../theme/app_colors.dart';
 
 class LiveStreamScreen extends StatefulWidget {
-  const LiveStreamScreen({super.key});
+  final Map<String, dynamic>? initialCamera;
+  const LiveStreamScreen({super.key, this.initialCamera});
 
   @override
   State<LiveStreamScreen> createState() => _LiveStreamScreenState();
@@ -17,18 +18,34 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   bool _isPlayerInitialized = false;
   String? _playerError;
 
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _urlCtrl = TextEditingController();
-  final _zoneCtrl = TextEditingController();
-  bool _isRegistering = false;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCamera != null) {
+      _selectedCamera = widget.initialCamera;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Auto-select first camera if none selected and no initial camera injected
+    if (_selectedCamera == null) {
+      final state = Provider.of<AppState>(context);
+      if (state.cameras.isNotEmpty) {
+        _selectedCamera = Map<String, dynamic>.from(state.cameras.first);
+      }
+    }
+
+    if (_selectedCamera != null && _playerController == null) {
+      final int cid = _selectedCamera!['id'] as int;
+      _initializePlayer('/uploads/streams/$cid/index.m3u8');
+    }
+  }
 
   @override
   void dispose() {
     _playerController?.dispose();
-    _nameCtrl.dispose();
-    _urlCtrl.dispose();
-    _zoneCtrl.dispose();
     super.dispose();
   }
 
@@ -60,169 +77,77 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       });
   }
 
-  void _openAddCameraDialog(AppState state) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: AppColors.slate900,
-          title: const Text('Register New IP Camera', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-          content: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: _nameCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Camera Name',
-                      labelStyle: TextStyle(color: AppColors.slate400),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.slate700)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.blue500)),
-                    ),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _urlCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'RTSP Stream URL',
-                      labelStyle: TextStyle(color: AppColors.slate400),
-                      hintText: 'rtsp://ip:port/h264',
-                      hintStyle: TextStyle(color: AppColors.slate600, fontSize: 12),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.slate700)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.blue500)),
-                    ),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _zoneCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Monitoring Zone / Cage ID',
-                      labelStyle: TextStyle(color: AppColors.slate400),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.slate700)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.blue500)),
-                    ),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.slate400)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blue600,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () async {
-                if (_formKey.currentState!.validate()) {
-                  Navigator.pop(context);
-                  setState(() => _isRegistering = true);
-                  final success = await state.registerCamera(
-                    _nameCtrl.text,
-                    _urlCtrl.text,
-                    _zoneCtrl.text,
-                  );
-                  if (mounted) {
-                    setState(() => _isRegistering = false);
-                    _nameCtrl.clear();
-                    _urlCtrl.clear();
-                    _zoneCtrl.clear();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(success ? 'Camera registered successfully!' : 'Failed to register camera'),
-                        backgroundColor: success ? AppColors.emerald600 : AppColors.rose600,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Add Camera', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
 
-    // Auto-select first camera if none selected
-    if (_selectedCamera == null && state.cameras.isNotEmpty) {
-      _selectedCamera = Map<String, dynamic>.from(state.cameras.first);
-      // Construct HLS stream URL target
-      final int cameraId = _selectedCamera!['id'] as int;
-      _initializePlayer('/uploads/streams/$cameraId/index.m3u8');
-    }
-
     return Scaffold(
-      backgroundColor: AppColors.slate950,
+      backgroundColor: AppColors.slate50,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: const Border(bottom: BorderSide(color: AppColors.slate100, width: 1)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.slate800),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _selectedCamera != null ? _selectedCamera!['name'] as String : 'Live Video Stream',
+          style: const TextStyle(
+            color: AppColors.slate800,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'LIVE POULTRY STREAM',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.blue400,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _selectedCamera != null ? _selectedCamera!['name'] as String : 'No Camera Selected',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'LIVE POULTRY MONITOR',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue600,
+                      letterSpacing: 1.5,
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.add_a_photo_outlined, color: Colors.white, size: 22),
-                    onPressed: () => _openAddCameraDialog(state),
+                  const SizedBox(height: 2),
+                  Text(
+                    _selectedCamera != null
+                        ? "${_selectedCamera!['name']} - ${_selectedCamera!['zone']}"
+                        : 'No Camera Streaming',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.slate800,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // Stream Selector Dropdown
-              if (state.cameras.isNotEmpty)
+              // Dropdown selector (only show if multiple cameras exist)
+              if (state.cameras.length > 1) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.slate900,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.slate800),
+                    border: Border.all(color: AppColors.slate100),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<Map<String, dynamic>>(
-                      dropdownColor: AppColors.slate900,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       value: _selectedCamera,
                       items: state.cameras.map((c) {
                         final cameraMap = Map<String, dynamic>.from(c);
@@ -230,7 +155,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                           value: cameraMap,
                           child: Text(
                             "${cameraMap['name']} (${cameraMap['zone']})",
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                            style: const TextStyle(color: AppColors.slate800, fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                         );
                       }).toList(),
@@ -246,16 +171,24 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
 
-              // Video Player Container
+              // Video Player Card Container
               Expanded(
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.black,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.slate800),
+                    border: Border.all(color: AppColors.slate100),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Stack(
@@ -282,14 +215,18 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                               ),
                               const SizedBox(height: 16),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue600),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.blue600,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
                                 onPressed: () {
                                   if (_selectedCamera != null) {
                                     final int cid = _selectedCamera!['id'] as int;
                                     _initializePlayer('/uploads/streams/$cid/index.m3u8');
                                   }
                                 },
-                                child: const Text('Retry Connection', style: TextStyle(color: Colors.white)),
+                                child: const Text('Retry Connection', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                               ),
                             ],
                           ),
@@ -300,7 +237,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                           children: const [
                             CircularProgressIndicator(color: AppColors.blue500),
                             SizedBox(height: 16),
-                            Text('Loading RTSP stream...', style: TextStyle(color: AppColors.slate500, fontSize: 12)),
+                            Text('Connecting to RTSP stream...', style: TextStyle(color: AppColors.slate400, fontSize: 12)),
                           ],
                         ),
 
@@ -313,12 +250,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: AppColors.rose950.withOpacity(0.9),
+                              color: AppColors.rose50,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.rose500.withOpacity(0.5)),
+                              border: Border.all(color: AppColors.rose100),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withOpacity(0.1),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 )
@@ -326,13 +263,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                             ),
                             child: Row(
                               children: const [
-                                Icon(Icons.warning_amber_rounded, color: AppColors.rose500, size: 20),
+                                Icon(Icons.warning_amber_rounded, color: AppColors.rose700, size: 20),
                                 SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     'HEALTH CRITICAL: Inactive chick detected in zone!',
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: AppColors.rose700,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -351,17 +288,17 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.8),
+                              color: AppColors.rose500.withOpacity(0.85),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: const [
-                                Icon(Icons.circle, color: Colors.white, size: 8),
+                                Icon(Icons.circle, color: Colors.white, size: 6),
                                 SizedBox(width: 4),
                                 Text(
                                   'LIVE',
-                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
                                 ),
                               ],
                             ),
@@ -378,20 +315,27 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.slate900,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.slate800),
+                    border: Border.all(color: AppColors.slate100),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      )
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, color: AppColors.blue500, size: 16),
+                          const Icon(Icons.location_on_outlined, color: AppColors.blue600, size: 16),
                           const SizedBox(width: 8),
                           Text(
                             "Monitoring Zone: ${_selectedCamera!['zone']}",
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                            style: const TextStyle(color: AppColors.slate800, fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),

@@ -15,7 +15,7 @@ class _PersonnelRegistrationScreenState extends State<PersonnelRegistrationScree
   final _nameCtrl = TextEditingController();
   final _roleCtrl = TextEditingController();
 
-  // Face data snapshots. Maps angle name to mock face data (base64 or local description)
+  // Face data snapshots. Maps angle name to mock face data
   final Map<String, List<int>> _faceBytes = {};
   final Map<String, String> _facePreviews = {};
   bool _isRegistering = false;
@@ -29,8 +29,6 @@ class _PersonnelRegistrationScreenState extends State<PersonnelRegistrationScree
 
   // Generates high quality face silhouettes/placeholders for direct mock registration
   void _setMockFace(String angle, String placeholderType) {
-    // Generate simple dummy face data bytes (representing image bytes)
-    // In a real device we would read actual camera file bytes.
     final dummyBytes = List<int>.generate(100, (i) => i);
     setState(() {
       _faceBytes[angle] = dummyBytes;
@@ -115,19 +113,25 @@ class _PersonnelRegistrationScreenState extends State<PersonnelRegistrationScree
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          // Provide mock face profile images to make demo easy on emulators
           _setMockFace(angle, label);
         },
         child: Container(
-          height: 120,
+          height: 100,
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: hasImage ? AppColors.blue900.withOpacity(0.4) : AppColors.slate900,
+            color: hasImage ? AppColors.blue50 : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: hasImage ? AppColors.blue500 : AppColors.slate800,
+              color: hasImage ? AppColors.blue600 : AppColors.slate200,
               width: hasImage ? 2 : 1,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              )
+            ],
           ),
           child: Stack(
             alignment: Alignment.center,
@@ -136,29 +140,29 @@ class _PersonnelRegistrationScreenState extends State<PersonnelRegistrationScree
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.face_retouching_natural, color: AppColors.blue400, size: 28),
+                    const Icon(Icons.face_retouching_natural, color: AppColors.blue600, size: 24),
                     const SizedBox(height: 6),
                     Text(
                       '$label Loaded',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: AppColors.blue700, fontSize: 9, fontWeight: FontWeight.w800),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 4),
-                    const Text('Tap to re-capture', style: TextStyle(color: AppColors.slate500, fontSize: 8)),
+                    const SizedBox(height: 2),
+                    const Text('Tap to re-capture', style: TextStyle(color: AppColors.slate400, fontSize: 7)),
                   ],
                 )
               else
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.camera_alt_outlined, color: AppColors.slate500, size: 28),
-                    const SizedBox(height: 8),
+                    const Icon(Icons.camera_alt_outlined, color: AppColors.slate400, size: 24),
+                    const SizedBox(height: 6),
                     Text(
                       label,
-                      style: const TextStyle(color: AppColors.slate400, fontSize: 11, fontWeight: FontWeight.w600),
+                      style: const TextStyle(color: AppColors.slate700, fontSize: 10, fontWeight: FontWeight.w700),
                     ),
-                    const SizedBox(height: 4),
-                    const Text('Tap to capture', style: TextStyle(color: AppColors.slate600, fontSize: 8)),
+                    const SizedBox(height: 2),
+                    const Text('Tap to capture', style: TextStyle(color: AppColors.slate400, fontSize: 7)),
                   ],
                 ),
             ],
@@ -168,162 +172,296 @@ class _PersonnelRegistrationScreenState extends State<PersonnelRegistrationScree
     );
   }
 
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.slate500, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 4),
+        TextFormField(
+          controller: controller,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate800),
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: hint,
+            hintStyle: const TextStyle(fontSize: 12, color: AppColors.slate400),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            fillColor: Colors.white,
+            filled: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.slate200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.slate200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.blue600, width: 1.5),
+            ),
+          ),
+          validator: (v) => v == null || v.isEmpty ? 'Required field' : null,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF020617),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          const Text(
+            'ACCESS CONTROL REGISTRATION',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppColors.blue600,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Personnel Profiles',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.slate800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Register and monitor personnel authorized to enter the poultry house',
+            style: TextStyle(fontSize: 12, color: AppColors.slate500),
+          ),
+          const SizedBox(height: 16),
+
+          // Scrollable layout containing both form and list
+          Expanded(
+            child: ListView(
               children: [
-                // Header
-                const Text(
-                  'ACCESS CONTROL REGISTRATION',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.blue400,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Add Personnel Profile',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
+                // Form Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
                     color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.slate100),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      )
+                    ],
                   ),
-                ),
-                const SizedBox(height: 24),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTextField(
+                          controller: _nameCtrl,
+                          label: 'Full Name',
+                          hint: 'e.g. Jane Doe',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTextField(
+                          controller: _roleCtrl,
+                          label: 'Role (e.g. Veterinarian, Manager, Feeder)',
+                          hint: 'e.g. Manager',
+                        ),
+                        const SizedBox(height: 16),
 
-                // Form Fields
-                TextFormField(
-                  controller: _nameCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    labelStyle: const TextStyle(color: AppColors.slate400),
-                    filled: true,
-                    fillColor: AppColors.slate900,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: AppColors.slate800),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: AppColors.blue500, width: 1.5),
-                    ),
-                  ),
-                  validator: (v) => v == null || v.isEmpty ? 'Please enter a name' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _roleCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Role (e.g. Vet, Manager, Feeder)',
-                    labelStyle: const TextStyle(color: AppColors.slate400),
-                    filled: true,
-                    fillColor: AppColors.slate900,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: AppColors.slate800),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: AppColors.blue500, width: 1.5),
-                    ),
-                  ),
-                  validator: (v) => v == null || v.isEmpty ? 'Please enter a role' : null,
-                ),
-                const SizedBox(height: 24),
+                        // Face Templates Section
+                        const Text(
+                          'FACE SCAN SCAN TEMPLATES',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.slate500,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            _buildCameraSlot('Front Face', 'FRONT'),
+                            _buildCameraSlot('Left Profile', 'LEFT'),
+                            _buildCameraSlot('Right Profile', 'RIGHT'),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
 
-                // Face capture section title
+                        // Submit Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.blue600,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: _isRegistering ? null : () => _submitRegistration(state),
+                            child: _isRegistering
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Text(
+                                    'Register Profile',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Registered Personnel Section Header
                 const Text(
-                  'FACE ANGLE SCAN TEMPLATES',
+                  'CURRENT TEAM MEMBERS',
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.slate500,
                     letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
-                // Front, Left, Right slots
-                Row(
-                  children: [
-                    _buildCameraSlot('Front Face', 'FRONT'),
-                    _buildCameraSlot('Left Profile', 'LEFT'),
-                    _buildCameraSlot('Right Profile', 'RIGHT'),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Submit Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue600,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
+                // Personnel List
+                if (state.personnel.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.slate100),
                     ),
-                    onPressed: _isRegistering ? null : () => _submitRegistration(state),
-                    child: _isRegistering
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Save Personnel Profile',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                    child: const Center(
+                      child: Text(
+                        'No personnel registered yet',
+                        style: TextStyle(color: AppColors.slate400, fontSize: 12),
+                      ),
+                    ),
+                  )
+                else
+                  ...state.personnel.map((p) {
+                    final person = Map<String, dynamic>.from(p);
+                    final facesList = person['faces'] as List<dynamic>? ?? [];
+
+                    // Check which face angles are registered
+                    final hasFront = facesList.any((f) => f['angle'] == 'FRONT');
+                    final hasLeft = facesList.any((f) => f['angle'] == 'LEFT');
+                    final hasRight = facesList.any((f) => f['angle'] == 'RIGHT');
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.slate100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // Profile Circle Avatar
+                          CircleAvatar(
+                            backgroundColor: AppColors.blue50,
+                            radius: 18,
+                            child: const Icon(Icons.person_outline, color: AppColors.blue600, size: 18),
+                          ),
+                          const SizedBox(width: 14),
+
+                          // Name and Role
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  person['name'] as String,
+                                  style: const TextStyle(
+                                    color: AppColors.slate800,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  person['role'] as String,
+                                  style: const TextStyle(color: AppColors.slate500, fontSize: 11),
+                                ),
+                              ],
                             ),
                           ),
-                  ),
-                ),
-                const SizedBox(height: 30),
 
-                // Quick explanation text
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.slate900,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.slate800),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.info_outline, color: AppColors.blue400, size: 16),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Scan templates are converted to 512-dimensional face vectors (embeddings) to authenticate entries at the poultry house gate.',
-                          style: TextStyle(color: AppColors.slate400, fontSize: 10, height: 1.4),
-                        ),
+                          // Face Angles Badges
+                          Row(
+                            children: [
+                              _angleIndicator('F', hasFront),
+                              const SizedBox(width: 4),
+                              _angleIndicator('L', hasLeft),
+                              const SizedBox(width: 4),
+                              _angleIndicator('R', hasRight),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    );
+                  }).toList(),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _angleIndicator(String label, bool active) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: active ? AppColors.emerald50 : AppColors.slate100,
+        shape: BoxShape.circle,
+        border: Border.all(color: active ? AppColors.emerald100 : AppColors.slate200),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          color: active ? AppColors.emerald600 : AppColors.slate400,
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );

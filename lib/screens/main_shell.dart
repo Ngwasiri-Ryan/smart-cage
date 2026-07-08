@@ -4,11 +4,10 @@ import '../models/app_state.dart';
 import '../theme/app_colors.dart';
 import '../widgets/simulator_drawer.dart';
 import 'dashboard_screen.dart';
-import 'ammonia_screen.dart';
-import 'feed_history_screen.dart';
 import 'alerts_screen.dart';
-import 'live_stream_screen.dart';
+import 'cameras_screen.dart';
 import 'personnel_registration_screen.dart';
+import 'sensors_screen.dart';
 
 class _Toast {
   final int id;
@@ -149,10 +148,9 @@ class _MainShellState extends State<MainShell>
                     index: state.activeTab,
                     children: const [
                       DashboardScreen(),
-                      LiveStreamScreen(),
+                      CamerasScreen(),
                       PersonnelRegistrationScreen(),
-                      AmmoniaScreen(),
-                      FeedHistoryScreen(),
+                      SensorsScreen(),
                       AlertsScreen(),
                     ],
                   ),
@@ -253,10 +251,9 @@ class _MainShellState extends State<MainShell>
   Widget _buildBottomNav(AppState state) {
     final items = [
       (Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
-      (Icons.videocam_outlined, Icons.videocam, 'Live Stream'),
+      (Icons.videocam_outlined, Icons.videocam, 'Cameras'),
       (Icons.people_outline, Icons.people, 'Personnel'),
-      (Icons.science_outlined, Icons.science, 'Ammonia'),
-      (Icons.bar_chart, Icons.bar_chart, 'Feed'),
+      (Icons.science_outlined, Icons.science, 'Sensors'),
       (Icons.notifications_outlined, Icons.notifications, 'Alerts'),
     ];
 
@@ -288,7 +285,7 @@ class _MainShellState extends State<MainShell>
                           Icon(active ? items[i].$2 : items[i].$1,
                               color: active ? AppColors.blue600 : AppColors.slate400,
                               size: 20),
-                          if (i == 5 && alertCount > 0)
+                          if (i == 4 && alertCount > 0)
                             Positioned(
                               top: -4, right: -4,
                               child: Container(
