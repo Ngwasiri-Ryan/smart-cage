@@ -7,6 +7,8 @@ import 'dashboard_screen.dart';
 import 'ammonia_screen.dart';
 import 'feed_history_screen.dart';
 import 'alerts_screen.dart';
+import 'live_stream_screen.dart';
+import 'personnel_registration_screen.dart';
 
 class _Toast {
   final int id;
@@ -147,6 +149,8 @@ class _MainShellState extends State<MainShell>
                     index: state.activeTab,
                     children: const [
                       DashboardScreen(),
+                      LiveStreamScreen(),
+                      PersonnelRegistrationScreen(),
                       AmmoniaScreen(),
                       FeedHistoryScreen(),
                       AlertsScreen(),
@@ -249,10 +253,14 @@ class _MainShellState extends State<MainShell>
   Widget _buildBottomNav(AppState state) {
     final items = [
       (Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
+      (Icons.videocam_outlined, Icons.videocam, 'Live Stream'),
+      (Icons.people_outline, Icons.people, 'Personnel'),
       (Icons.science_outlined, Icons.science, 'Ammonia'),
-      (Icons.bar_chart, Icons.bar_chart, 'Feed History'),
-      (Icons.notifications_outlined, Icons.notifications, 'Alert Log'),
+      (Icons.bar_chart, Icons.bar_chart, 'Feed'),
+      (Icons.notifications_outlined, Icons.notifications, 'Alerts'),
     ];
+
+    final alertCount = state.alerts.length + state.healthAlerts.length + state.accessLogs.length;
 
     return Container(
       decoration: const BoxDecoration(
@@ -279,8 +287,8 @@ class _MainShellState extends State<MainShell>
                         children: [
                           Icon(active ? items[i].$2 : items[i].$1,
                               color: active ? AppColors.blue600 : AppColors.slate400,
-                              size: 22),
-                          if (i == 3 && state.alerts.isNotEmpty)
+                              size: 20),
+                          if (i == 5 && alertCount > 0)
                             Positioned(
                               top: -4, right: -4,
                               child: Container(
@@ -290,7 +298,7 @@ class _MainShellState extends State<MainShell>
                                   borderRadius: BorderRadius.circular(999),
                                   border: Border.all(color: Colors.white, width: 1.5),
                                 ),
-                                child: Text('${state.alerts.length}',
+                                child: Text('$alertCount',
                                     style: const TextStyle(
                                         color: Colors.white, fontSize: 8,
                                         fontWeight: FontWeight.w800)),
@@ -301,7 +309,7 @@ class _MainShellState extends State<MainShell>
                       const SizedBox(height: 3),
                       Text(items[i].$3,
                           style: TextStyle(
-                              fontSize: 9, fontWeight: FontWeight.w700,
+                              fontSize: 8, fontWeight: FontWeight.w700,
                               color: active ? AppColors.blue600 : AppColors.slate400)),
                     ],
                   ),

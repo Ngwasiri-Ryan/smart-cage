@@ -71,6 +71,13 @@ class AppState extends ChangeNotifier {
   String aiSummary = '"No summary loaded..."';
   bool aiLoading = false;
 
+  // Camera & Access Control states
+  List<dynamic> cameras = [];
+  List<dynamic> personnel = [];
+  List<dynamic> healthAlerts = [];
+  List<dynamic> accessLogs = [];
+  bool isLowMovementFlagged = false;
+
   // Pending toasts consumed by the UI
   final List<ToastData> _pendingToasts = [];
   List<ToastData> get pendingToasts => List.unmodifiable(_pendingToasts);
@@ -188,6 +195,34 @@ class AppState extends ChangeNotifier {
       } else {
         aiSummary = '"No summary generated for today yet."';
       }
+
+      // 6. Fetch cameras
+      final camerasList = await _apiService.fetchCameras();
+      if (camerasList != null) {
+        cameras = camerasList;
+      }
+
+      // 7. Fetch personnel
+      final personnelList = await _apiService.fetchPersonnel();
+      if (personnelList != null) {
+        personnel = personnelList;
+      }
+
+      // 8. Fetch health alerts
+      final healthAlertsList = await _apiService.fetchHealthAlerts();
+      if (healthAlertsList != null) {
+        healthAlerts = healthAlertsList;
+        isLowMovementFlagged = healthAlerts.any((a) {
+          final createdAt = DateTime.tryParse(a['createdAt'] as String) ?? DateTime.now();
+          return DateTime.now().difference(createdAt).inMinutes < 5;
+        });
+      }
+
+      // 9. Fetch access logs
+      final accessLogsList = await _apiService.fetchAccessLogs();
+      if (accessLogsList != null) {
+        accessLogs = accessLogsList;
+      }
     } catch (e) {
       print('AppState: _loadInitialData error: $e');
     }
@@ -255,12 +290,59 @@ class AppState extends ChangeNotifier {
         }
         notifyListeners();
       },
+      onHealthAlertNew: (data) {
+        healthAlerts.insert(0, data);
+        isLowMovementFlagged = true;
+        _toast('Health Warning: ${data['description']}', 'Warning');
+        notifyListeners();
+      },
+      onAccessLogNew: (data) {
+        accessLogs.insert(0, data);
+        final bool authorized = data['isAuthorized'] as bool;
+        final severity = authorized ? 'Caution' : 'Critical';
+        _toast('Access Activity: ${data['matchedName']} (${authorized ? "Authorized" : "Unauthorized"})', severity);
+        notifyListeners();
+      },
       onRelayChange: (data) {
         relayActiveFan = data['fanActive'] as bool;
         relayActiveHeater = data['heaterActive'] as bool;
         notifyListeners();
       },
     );
+  }
+
+  // Camera & Access Control Actions
+  Future<bool> registerCamera(String name, String rtspUrl, String zone) async {
+    final camera = await _apiService.registerCamera(name, rtspUrl, zone);
+    if (camera != null) {
+      cameras.insert(0, camera);
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> registerPersonnel(String name, String role) async {
+    final person = await _apiService.registerPersonnel(name, role);
+    if (person != null) {
+      personnel.insert(0, person);
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> uploadFace(int personnelId, String angle, List<int> bytes, String fileName) async {
+    final success = await _apiService.uploadFace(personnelId, angle, bytes, fileName);
+    if (success) {
+      final personnelList = await _apiService.fetchPersonnel();
+      if (personnelList != null) {
+        personnel = personnelList;
+      }
+      notifyListeners();
+      return true;
+    }
+    return false;
   }
 
   String _capitalize(String value) {

@@ -156,4 +156,105 @@ class ApiService {
       return false;
     }
   }
+
+  // Fetch cameras
+  Future<List<dynamic>?> fetchCameras() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/cameras'));
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as List<dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: fetchCameras error: $e');
+    }
+    return null;
+  }
+
+  // Register camera
+  Future<Map<String, dynamic>?> registerCamera(String name, String rtspUrl, String zone) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/cameras'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'name': name, 'rtspUrl': rtspUrl, 'zone': zone}),
+      );
+      if (response.statusCode == 201) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: registerCamera error: $e');
+    }
+    return null;
+  }
+
+  // Fetch personnel
+  Future<List<dynamic>?> fetchPersonnel() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/personnel'));
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as List<dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: fetchPersonnel error: $e');
+    }
+    return null;
+  }
+
+  // Register personnel
+  Future<Map<String, dynamic>?> registerPersonnel(String name, String role) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/personnel'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'name': name, 'role': role}),
+      );
+      if (response.statusCode == 201) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: registerPersonnel error: $e');
+    }
+    return null;
+  }
+
+  // Upload face photo
+  Future<bool> uploadFace(int id, String angle, List<int> bytes, String fileName) async {
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/personnel/$id/face'));
+      request.fields['angle'] = angle;
+      request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      print('ApiService: uploadFace error: $e');
+      return false;
+    }
+  }
+
+  // Fetch health alerts
+  Future<List<dynamic>?> fetchHealthAlerts() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/health-alerts'));
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as List<dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: fetchHealthAlerts error: $e');
+    }
+    return null;
+  }
+
+  // Fetch access logs
+  Future<List<dynamic>?> fetchAccessLogs() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/access-logs'));
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as List<dynamic>;
+      }
+    } catch (e) {
+      print('ApiService: fetchAccessLogs error: $e');
+    }
+    return null;
+  }
 }

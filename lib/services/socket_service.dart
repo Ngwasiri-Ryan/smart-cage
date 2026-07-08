@@ -9,6 +9,8 @@ class SocketService {
     required Function(Map<String, dynamic>) onFeedUpdate,
     required Function(Map<String, dynamic>) onAlertNew,
     required Function(Map<String, dynamic>) onRelayChange,
+    required Function(Map<String, dynamic>) onHealthAlertNew,
+    required Function(Map<String, dynamic>) onAccessLogNew,
     Function(bool)? onConnectionStatus,
   }) {
     socket = IO.io(
@@ -51,6 +53,20 @@ class SocketService {
       print('SocketService: alert:new: $data');
       if (data != null) {
         onAlertNew(Map<String, dynamic>.from(data));
+      }
+    });
+
+    socket!.on('health-alert:new', (data) {
+      print('SocketService: health-alert:new: $data');
+      if (data != null) {
+        onHealthAlertNew(Map<String, dynamic>.from(data));
+      }
+    });
+
+    socket!.on('access-log:new', (data) {
+      print('SocketService: access-log:new: $data');
+      if (data != null) {
+        onAccessLogNew(Map<String, dynamic>.from(data));
       }
     });
 
