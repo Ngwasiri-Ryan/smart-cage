@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'https://smartcage-backend-production.up.railway.app';
+  // Production Railway Backend URL:
+  // static const String baseUrl = 'https://smartcage-backend-production.up.railway.app';
+  // Local Development (Android Emulator loopback to host):
+  static const String baseUrl = 'http://10.0.2.2:3000';
 
   // Fetch the latest telemetry reading
   Future<Map<String, dynamic>?> fetchLatestTelemetry() async {

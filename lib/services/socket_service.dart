@@ -1,7 +1,10 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class SocketService {
-  static const String baseUrl = 'https://smartcage-backend-production.up.railway.app';
+  // Production WSS Backend URL:
+  // static const String baseUrl = 'https://smartcage-backend-production.up.railway.app';
+  // Local Development (Android Emulator loopback to host):
+  static const String baseUrl = 'http://10.0.2.2:3000';
   IO.Socket? socket;
 
   void connect({
