@@ -146,27 +146,29 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                     border: Border.all(color: AppColors.slate100),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<Map<String, dynamic>>(
+                    child: DropdownButton<int>(
                       isExpanded: true,
                       dropdownColor: Colors.white,
-                      value: _selectedCamera,
+                      value: _selectedCamera != null && state.cameras.any((c) => c['id'] == _selectedCamera!['id'])
+                          ? _selectedCamera!['id'] as int
+                          : null,
                       items: state.cameras.map((c) {
                         final cameraMap = Map<String, dynamic>.from(c);
-                        return DropdownMenuItem<Map<String, dynamic>>(
-                          value: cameraMap,
+                        return DropdownMenuItem<int>(
+                          value: cameraMap['id'] as int,
                           child: Text(
                             "${cameraMap['name']} (${cameraMap['zone']})",
                             style: const TextStyle(color: AppColors.slate800, fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                         );
                       }).toList(),
-                      onChanged: (newCam) {
-                        if (newCam != null) {
+                      onChanged: (newId) {
+                        if (newId != null) {
+                          final selected = state.cameras.firstWhere((c) => c['id'] == newId);
                           setState(() {
-                            _selectedCamera = newCam;
+                            _selectedCamera = Map<String, dynamic>.from(selected);
                           });
-                          final int cid = newCam['id'] as int;
-                          _initializePlayer('/uploads/streams/$cid/index.m3u8');
+                          _initializePlayer('/uploads/streams/$newId/index.m3u8');
                         }
                       },
                     ),
