@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import '../models/app_state.dart';
 import '../theme/app_colors.dart';
+import '../services/api_service.dart';
 
 class LiveStreamScreen extends StatefulWidget {
   final Map<String, dynamic>? initialCamera;
@@ -56,7 +57,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       _playerError = null;
     });
 
-    final String absoluteUrl = 'https://smartcage-backend-production.up.railway.app$relativeM3u8Url';
+    final String absoluteUrl = '${ApiService.baseUrl}$relativeM3u8Url';
     print('[LiveStreamScreen] Connecting to HLS stream: $absoluteUrl');
 
     _playerController = VideoPlayerController.networkUrl(Uri.parse(absoluteUrl))
